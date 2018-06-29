@@ -19,80 +19,204 @@ import javax.mail.internet.MimeMultipart;
 
 public class SendMailTLS {
 
-	public static void main(String[] args) {
+	private static SendMailTLS instance;
+	private static final String SMTP_HOST = "smtp.gmail.com";
 
-		final String username = "";//your mail id
-		final String password = "";//your password
-
-		Properties props = new Properties();
-		props.put("mail.smtp.auth", "true");
-		props.put("mail.smtp.starttls.enable", "true");
-		props.put("mail.smtp.host", "smtp.gmail.com");
-		props.put("mail.smtp.port", "587");
-
-		Session session = Session.getInstance(props,
-		  new javax.mail.Authenticator() {
-			protected PasswordAuthentication getPasswordAuthentication() {
-				return new PasswordAuthentication(username, password);
-			}
-		  });
-		String [] to={"abc@gmail.com","xyz@gmail.com"};//sending to multiple user
-		String imagePath="/home/stpl/Downloads/11.png";
-		SendMailTLS.sendAttachmentEmail(session, to,"SSLEmail Testing Subject with Attachment", "SSLEmail Testing Body with Attachment",imagePath);
-
-		
+	private SendMailTLS() {
 	}
-	public static void sendAttachmentEmail(Session session, String[] toEmail, String subject, String body, String imagePath){
+
+	public static SendMailTLS getInstance() {
+		if (instance == null)
+			instance = new SendMailTLS();
+		return instance;
+	}
+
+	public void sendMail(String fromEmail, String toEmail, String subject, String body) {
 		try {
 
+			Properties props = new Properties();
+			props.put("mail.smtp.host", SMTP_HOST);
+
+			Session session = SendMailTLS.getInstance().getSMTPSession(props, true);
+
 			Message message = new MimeMessage(session);
-			message.setFrom(new InternetAddress("from-email@gmail.com"));
+			message.setFrom(new InternetAddress(fromEmail));
+
+			message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
+			message.setSubject(subject);
+
+			// for sending simple body mail
+			message.setText(body);
+			message.setSentDate(new Date());
+			// Send mail
+			Transport.send(message);
+
+			System.out.println("Sent message successfully....");
+
+		} catch (MessagingException e) {
+			throw new RuntimeException(e);
+		}
+
+	}
+
+	public void sendMail(String fromEmail, String toEmail, String subject, String body, String filePath) {
+		try {
+
+			Properties props = new Properties();
+			props.put("mail.smtp.host", SMTP_HOST);
+
+			Session session = SendMailTLS.getInstance().getSMTPSession(props, true);
+
+			Message message = new MimeMessage(session);
+			message.setFrom(new InternetAddress(fromEmail));
+
+			message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
+			message.setSubject(subject);
+
+			// for sending simple body mail
+
+			// This mail has 2 part, the BODY and the embedded image
+			MimeMultipart multipart = new MimeMultipart("related");
+
+			// first part (the html)
+			BodyPart messageBodyPart = new MimeBodyPart();
+			String htmlText = body;
+			messageBodyPart.setContent(htmlText, "text/html");
+			// add it
+			multipart.addBodyPart(messageBodyPart);
+
+			// second part (the image)
+			messageBodyPart = new MimeBodyPart();
+			DataSource fds = new FileDataSource(filePath);
+
+			messageBodyPart.setDataHandler(new DataHandler(fds));
+			messageBodyPart.setHeader("Content-ID", "<image>");
+
+			// add image to the multipart
+			multipart.addBodyPart(messageBodyPart);
+
+			// put everything together
+			message.setContent(multipart);
+
+			// Send mail
+			Transport.send(message);
+
+			System.out.println("Sent message successfully....");
+
+		} catch (MessagingException e) {
+			throw new RuntimeException(e);
+		}
+
+	}
+
+	public void sendBulkMail(String fromEmail, String[] toEmail, String subject, String body) {
+		try {
+
+			Properties props = new Properties();
+			props.put("mail.smtp.host", SMTP_HOST);
+
+			Session session = SendMailTLS.getInstance().getSMTPSession(props, true);
+
+			Message message = new MimeMessage(session);
+			message.setFrom(new InternetAddress(fromEmail));
 			InternetAddress[] sendTo = new InternetAddress[toEmail.length];
-			for (int i = 0; i <toEmail.length; i++) {
+			for (int i = 0; i < toEmail.length; i++) {
 				System.out.println("Send to:" + toEmail[i]);
 				sendTo[i] = new InternetAddress(toEmail[i]);
 			}
 			message.addRecipients(Message.RecipientType.TO, sendTo);
 			message.setSubject(subject);
-			if(imagePath==null){
-				
-				//for sending simple body mail
-				message.setText(body);
-			    message.setSentDate(new Date());
+
+			// for sending simple body mail
+			message.setText(body);
+			message.setSentDate(new Date());
+			// Send mail
+			Transport.send(message);
+
+			System.out.println("Sent message successfully....");
+
+		} catch (MessagingException e) {
+			throw new RuntimeException(e);
+		}
+
+	}
+
+	public void sendBulkMail(String fromEmail, String[] toEmail, String subject, String body, String filePath) {
+		try {
+
+			Properties props = new Properties();
+			props.put("mail.smtp.host", SMTP_HOST);
+
+			Session session = SendMailTLS.getInstance().getSMTPSession(props, true);
+
+			Message message = new MimeMessage(session);
+			message.setFrom(new InternetAddress(fromEmail));
+			InternetAddress[] sendTo = new InternetAddress[toEmail.length];
+			for (int i = 0; i < toEmail.length; i++) {
+				System.out.println("Send to:" + toEmail[i]);
+				sendTo[i] = new InternetAddress(toEmail[i]);
 			}
-			else{
-			 // This mail has 2 part, the BODY and the embedded image
-	         MimeMultipart multipart = new MimeMultipart("related");
+			message.setRecipients(Message.RecipientType.TO, sendTo);
+			message.setSubject(subject);
 
-	         // first part (the html)
-	         BodyPart messageBodyPart = new MimeBodyPart();
-	         String htmlText = "<H1>"+body+"</H1><img src=\"cid:image\">";
-	         messageBodyPart.setContent(htmlText, "text/html");
-	         // add it
-	         multipart.addBodyPart(messageBodyPart);
+			// for sending simple body mail
 
-	         // second part (the image)
-	         messageBodyPart = new MimeBodyPart();
-	         DataSource fds = new FileDataSource(
-	        		 imagePath);
+			// This mail has 2 part, the BODY and the embedded image
+			MimeMultipart multipart = new MimeMultipart("related");
 
-	         messageBodyPart.setDataHandler(new DataHandler(fds));
-	         messageBodyPart.setHeader("Content-ID", "<image>");
+			// first part (the html)
+			BodyPart messageBodyPart = new MimeBodyPart();
+			String htmlText = body;
+			messageBodyPart.setContent(htmlText, "text/html");
+			// add it
+			multipart.addBodyPart(messageBodyPart);
 
-	         // add image to the multipart
-	         multipart.addBodyPart(messageBodyPart);
+			// second part (the image)
+			messageBodyPart = new MimeBodyPart();
+			DataSource fds = new FileDataSource(filePath);
 
-	         // put everything together
-	         message.setContent(multipart);
-			}
-	         // Send message
-	         Transport.send(message);
+			messageBodyPart.setDataHandler(new DataHandler(fds));
+			messageBodyPart.setHeader("Content-ID", "<image>");
 
-	         System.out.println("Sent message successfully....");
+			// add image to the multipart
+			multipart.addBodyPart(messageBodyPart);
 
-	      } catch (MessagingException e) {
-	         throw new RuntimeException(e);
-	      }
-	
+			// put everything together
+			message.setContent(multipart);
+
+			// Send mail
+			Transport.send(message);
+
+			System.out.println("Sent message successfully....");
+
+		} catch (MessagingException e) {
+			throw new RuntimeException(e);
+		}
+
+	}
+
+	public Session getSMTPSession(Properties props, boolean senderAuth) {
+		if (senderAuth) {
+			props.put("mail.smtp.auth", "true");
+			props.put("mail.smtp.starttls.enable", "true");
+			props.put("mail.smtp.port", "587");
+			return Session.getInstance(props, new javax.mail.Authenticator() {
+				protected PasswordAuthentication getPasswordAuthentication() {
+					return new PasswordAuthentication("pankajkumar.01869@gmail.com", "email.com");
+				}
+			});
+		} else {
+			return Session.getInstance(props, null);
+		}
+	}
+
+	public static void main(String[] args) {
+
+		String toEmail = "pankaj.kumar@skilrock.com";
+		String fromEmail = "pankaj.kumar@skilrock.com";
+		String subject = "Test";
+		String message = "test message";
+		SendMailTLS.getInstance().sendMail(fromEmail, toEmail, subject, message);
+
 	}
 }
